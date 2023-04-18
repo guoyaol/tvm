@@ -481,7 +481,8 @@ class TorchFXImporter:
 
     def _cat(self, node: fx.node.Node) -> relax.Var:
         args = self.retrieve_args(node)
-        return self.block_builder.emit(relax.op.concat(args[0], axis=node.kwargs["dim"]))
+        nargs = len(node.args)
+        return self.block_builder.emit(relax.op.concat(args[0], axis=args[1] if nargs > 1 else node.kwargs["dim"]))
 
     def _expand(self, node: fx.node.Node) -> relax.Var:
         args = self.retrieve_args(node)
