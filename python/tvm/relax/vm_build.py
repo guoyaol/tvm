@@ -310,6 +310,10 @@ def build(
     passes.append(relax.transform.CallTIRRewrite())
     passes.append(relax.transform.StaticPlanBlockMemory())
 
+    seq = tvm.transform.Sequential(passes)
+    s_mod = seq(mod)
+    print(relax.analysis.estimate_memory_usage(s_mod))
+
     if tvm.transform.PassContext.current().config.get("relax.backend.use_cuda_graph", False):
         passes.append(relax.transform.RewriteCUDAGraph())
 
