@@ -1957,6 +1957,55 @@ def test_arange():
     )
 
 
+def test_new_arange():
+    import numpy as np
+
+    torch.set_grad_enabled(False)
+    torch.random.manual_seed(0)
+    input_info = [([3 ,3], "float32")]
+
+    def _make_causal_mask(
+        input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+    ):
+        """
+        Make causal mask used for bi-directional self-attention.
+        """
+        bsz, tgt_len = input_ids_shape
+        mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+        mask_cond = torch.arange(mask.size(-1), device=device)
+        mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+        mask = mask.to(dtype)
+
+        if past_key_values_length > 0:
+            mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+        return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+
+    class NewArange(Module):
+        def forward(self, input_ids, position_ids):
+            hidden_states = self.embeddings(input_ids=input_ids, position_ids=position_ids)
+            result = _make_causal_mask(input_shape, hidden_states.dtype, device=hidden_states.device)
+            return result
+    
+    graph_model = fx.symbolic_trace(NewArange())
+    mod = from_fx(graph_model, [([5, 3], "float32")])
+    sc = mod.script(show_meta=True)
+    print(sc)
+
+    # @tvm.script.ir_module
+    # class expected1:
+    #     @R.function
+    #     def main(inp_0: R.Tensor((10, 10), dtype="float32")) -> R.Tensor((10, 10), dtype="bool"):
+    #         with R.dataflow():
+    #             #TODO: implement this matrix
+    #             lv: R.Tensor((3, 3), dtype="float32") = R.Tensor((3, 3), dtype="float32")
+    #             gv: R.Tensor((3, 3), dtype="bool") = metadata["relax.expr.Constant"][0]
+    #             R.output(gv)
+    #         return gv
+
+    # verify_model(NewArange(), input_info, {}, expected1)
+    # print("pass")
+
+
 def test_empty():
     class Empty(Module):
         def forward(self, input):
@@ -2705,4 +2754,4 @@ def test_attention():
 
 
 if __name__ == "__main__":
-    tvm.testing.main()
+    test_new_arange()
