@@ -1981,13 +1981,12 @@ def test_new_arange():
         return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
 
     class NewArange(Module):
-        def forward(self, input_ids, position_ids):
-            hidden_states = self.embeddings(input_ids=input_ids, position_ids=position_ids)
-            result = _make_causal_mask(input_shape, hidden_states.dtype, device=hidden_states.device)
+        def forward(self, input):
+            result = _make_causal_mask(torch.Size([1, 5]), torch.float32, device="cpu")
             return result
     
     graph_model = fx.symbolic_trace(NewArange())
-    mod = from_fx(graph_model, [([5, 3], "float32")])
+    mod = from_fx(graph_model, [([1, 77], "float32")])
     sc = mod.script(show_meta=True)
     print(sc)
 
