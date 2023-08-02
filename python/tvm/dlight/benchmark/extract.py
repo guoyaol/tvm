@@ -39,7 +39,7 @@ RELAX_FUNC_NAME = "{relax_func_name}"
 PRIM_FUNC_NAME = "{prim_func_name}"
 FUNC_HASH = {func_hash}
 WEIGHT = {weight}
-SAMPLE_NUMBER = {sample_number}
+SAMPLE_NUMBER = {sample_num}
 
 DYM_VAR_SAMPLE_FUNC = {dym_var_sample_func}
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
         args = INPUT_ARGS,
         dym_var_dict = DYM_VAR_DICT,
         dym_var_sample_func = DYM_VAR_SAMPLE_FUNC,
-        sample_number = SAMPLE_NUMBER,
+        sample_num = SAMPLE_NUMBER,
         target = target,
         weight = WEIGHT,
         relax_func_name = RELAX_FUNC_NAME,
@@ -141,7 +141,7 @@ def extract_dynamic_var(
 
 
 def update_records(
-    records: Dict[List[relax.ShapeStructInfo], int], new_args: List[relax.ShapeStructInfo]
+    records: List[Tuple[List[relax.ShapeStructInfo], int]], new_args: List[relax.ShapeStructInfo]
 ) -> None:
     """Update the count of a function input argument config.
 
@@ -161,7 +161,7 @@ def update_records(
 
 def extract_func_info_from_prim_func(
     func: tvm.tir.PrimFunc,
-) -> Tuple[List[Tuple[Tuple[Union[tvm.tir.Var, int], ...], str]], Dict[str, str]]:
+) -> Tuple[List[Tuple[Tuple[Union[str, int], ...], str]], Dict[str, str]]:
     """Extract function input information from a PrimFunc.
 
     Parameters
@@ -172,7 +172,7 @@ def extract_func_info_from_prim_func(
     Returns
     -------
     result : Tuple[
-        List[Tuple[Tuple[Union[tvm.tir.Var, int], ...], str]],
+        List[Tuple[Tuple[Union[str, int], ...], str]],
         Dict[str, str],
     ]
         The function input information and dynamic shape variable dictionary.
@@ -188,7 +188,7 @@ def extract_func_info_from_prim_func(
                     shape.append(dim.value)
                 elif isinstance(dim, tvm.tir.Var):
                     dym_var[str(dim)] = str(dim.dtype)
-                    shape.append(dim)
+                    shape.append(str(dim))
                 else:
                     raise ValueError(f"Unknown shape: {buffer.shape}")
             func_args.append((tuple(shape), str(buffer.dtype)))
@@ -250,7 +250,7 @@ def extract_prim_func(  # pylint: disable=too-many-arguments
     func_args: Optional[List[Tuple[Tuple[Union[tvm.relax.expr.Call, int], ...], str]]] = None,
     dym_var_dict: Optional[Dict[str, str]] = None,
     weight: int = 1,
-    sample_number: int = 5,
+    sample_num: int = 5,
     target: Optional[Union[str, tvm.target.Target]] = None,
 ) -> str:
     """Extract a self-contained PrimFunc test file from a Relax module.
@@ -274,7 +274,7 @@ def extract_prim_func(  # pylint: disable=too-many-arguments
         If not given, the dictionary will be extracted from the PrimFunc.
     weight: int
         The weight of the prim function, by default 1.
-    sample_number: int
+    sample_num: int
         The number of times to sample dynamic shape variables, by default 5.
     target: Optional[Union[str, tvm.target.Target]]
         The target device to run the PrimFunc. If None, will use target from the context.
@@ -304,7 +304,7 @@ def extract_prim_func(  # pylint: disable=too-many-arguments
             "prim_func_name": prim_func_name,
             "func_hash": tvm.ir.structural_hash(func),
             "weight": weight,
-            "sample_number": sample_number,
+            "sample_num": sample_num,
             "dym_var_dict": f"pickle.loads({cloudpickle.dumps(dym_var_dict)})"
             if dym_var_dict is not None
             else "None",
