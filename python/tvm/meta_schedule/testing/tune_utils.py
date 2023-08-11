@@ -53,6 +53,7 @@ def generate_input_data(
         "int32": (0, 10000),
         "uint32": (0, 10000),
         "int64": (0, 10000),
+        "uint32": (0, 10000),
         "uint64": (0, 10000),
     }
     if input_dtype in range_map:
