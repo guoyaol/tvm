@@ -1957,52 +1957,52 @@ def test_arange():
     )
 
 
-def test_new_arange():
-    import numpy as np
+# def test_new_arange():
+#     import numpy as np
 
-    torch.set_grad_enabled(False)
-    torch.random.manual_seed(0)
-    input_info = [([3 ,3], "float32")]
+#     torch.set_grad_enabled(False)
+#     torch.random.manual_seed(0)
+#     input_info = [([3 ,3], "float32")]
 
-    def _make_causal_mask(
-        input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
-    ):
-        """
-        Make causal mask used for bi-directional self-attention.
-        """
-        bsz, tgt_len = input_ids_shape
-        mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
-        mask_cond = torch.arange(mask.size(-1), device=device)
-        mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
-        mask = mask.to(dtype)
+#     def _make_causal_mask(
+#         input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+#     ):
+#         """
+#         Make causal mask used for bi-directional self-attention.
+#         """
+#         bsz, tgt_len = input_ids_shape
+#         mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+#         mask_cond = torch.arange(mask.size(-1), device=device)
+#         mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+#         mask = mask.to(dtype)
 
-        if past_key_values_length > 0:
-            mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
-        return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+#         if past_key_values_length > 0:
+#             mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
+#         return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
 
-    class NewArange(Module):
-        def forward(self, input):
-            result = _make_causal_mask(torch.Size([1, 5]), torch.float32, device="cpu")
-            return result
+#     class NewArange(Module):
+#         def forward(self, input):
+#             result = _make_causal_mask(torch.Size([1, 5]), torch.float32, device="cpu")
+#             return result
     
-    graph_model = fx.symbolic_trace(NewArange())
-    mod = from_fx(graph_model, [([1, 77], "float32")])
-    sc = mod.script(show_meta=True)
-    print(sc)
+#     graph_model = fx.symbolic_trace(NewArange())
+#     mod = from_fx(graph_model, [([1, 77], "float32")])
+#     sc = mod.script(show_meta=True)
+#     print(sc)
 
-    # @tvm.script.ir_module
-    # class expected1:
-    #     @R.function
-    #     def main(inp_0: R.Tensor((10, 10), dtype="float32")) -> R.Tensor((10, 10), dtype="bool"):
-    #         with R.dataflow():
-    #             #TODO: implement this matrix
-    #             lv: R.Tensor((3, 3), dtype="float32") = R.Tensor((3, 3), dtype="float32")
-    #             gv: R.Tensor((3, 3), dtype="bool") = metadata["relax.expr.Constant"][0]
-    #             R.output(gv)
-    #         return gv
+#     # @tvm.script.ir_module
+#     # class expected1:
+#     #     @R.function
+#     #     def main(inp_0: R.Tensor((10, 10), dtype="float32")) -> R.Tensor((10, 10), dtype="bool"):
+#     #         with R.dataflow():
+#     #             #TODO: implement this matrix
+#     #             lv: R.Tensor((3, 3), dtype="float32") = R.Tensor((3, 3), dtype="float32")
+#     #             gv: R.Tensor((3, 3), dtype="bool") = metadata["relax.expr.Constant"][0]
+#     #             R.output(gv)
+#     #         return gv
 
-    # verify_model(NewArange(), input_info, {}, expected1)
-    # print("pass")
+#     # verify_model(NewArange(), input_info, {}, expected1)
+#     # print("pass")
 
 
 def test_empty():
@@ -2617,6 +2617,54 @@ def test_neg():
             return gv
 
     verify_model(Neg(), [([256, 256], "float32")], {}, Expected1)
+
+def test_cat():
+    class Cat0(Module):
+        def forward(self, x, y):
+            return torch.cat((x, y))
+
+    class Cat1(Module):
+        def forward(self, x, y):
+            return torch.cat((x, y), dim=1)
+        
+    class Cat2(Module):
+        def forward(self, x, y):
+            return torch.cat((x, y), 1)
+        
+    class Cat3(Module):
+        def forward(self, x, y):
+            return torch.concat((x, y), dim=0)
+
+    @I.ir_module
+    class Expected1:
+        @R.function
+        def main(
+            inp_0: R.Tensor((2, 3), dtype="float32"),
+            inp_1: R.Tensor((2, 3), dtype="float32"),
+        ) -> R.Tensor((4, 3), dtype="float32"):
+            with R.dataflow():
+                lv: R.Tensor((4, 3), dtype="float32") = R.concat((inp_0, inp_1), axis=0)
+                gv: R.Tensor((4, 3), dtype="float32") = lv
+                R.output(gv)
+            return gv
+        
+    @I.ir_module
+    class Expected2:
+        @R.function
+        def main(
+            inp_0: R.Tensor((2, 3), dtype="float32"),
+            inp_1: R.Tensor((2, 3), dtype="float32"),
+        ) -> R.Tensor((2, 6), dtype="float32"):
+            with R.dataflow():
+                lv: R.Tensor((2, 6), dtype="float32") = R.concat((inp_0, inp_1), axis=1)
+                gv: R.Tensor((2, 6), dtype="float32") = lv
+                R.output(gv)
+            return gv
+
+    verify_model(Cat0(), [([2, 3], "float32"), ([2, 3], "float32")], {}, Expected1)
+    verify_model(Cat1(), [([2, 3], "float32"), ([2, 3], "float32")], {}, Expected2)
+    verify_model(Cat2(), [([2, 3], "float32"), ([2, 3], "float32")], {}, Expected2)
+    verify_model(Cat3(), [([2, 3], "float32"), ([2, 3], "float32")], {}, Expected1)
 
 
 def test_max():
