@@ -630,7 +630,7 @@ void VirtualMachineImpl::InvokeClosurePacked(const ObjectRef& closure_or_packedf
   std::copy(args.values, args.values + args.size(), values.begin() + 1);
   std::copy(args.type_codes, args.type_codes + args.size(), tcodes.begin() + 1);
   {
-    NVTXScopedRange scope("RelaxVM: " + clo->func_name);
+    // NVTXScopedRange scope("RelaxVM: " + clo->func_name);
     clo->impl.CallPacked(TVMArgs(values.data(), tcodes.data(), args.size() + 1), rv);
   }
 }
