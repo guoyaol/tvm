@@ -27,6 +27,8 @@ proxy_port = 9090
 
 from model import Module
 
+import param_utils
+
 
 
 def test_rpc():
@@ -57,6 +59,8 @@ def test_rpc():
         session_constructor_args=["rpc.WasmSession", wasm_binary],
     )
 
+    print("remote connected")
+
     def check(remote):
         dev = remote.webgpu(0)
         # invoke the function
@@ -70,14 +74,13 @@ def test_rpc():
 
 
         print("start web infer")
-        vm.set_input("main", web_input_ids, web_clip_param)
-        vm.invoke_stateful("main")
-        web_out = vm.get_outputs("main")
+        vm.set_input("clip", web_input_ids, *web_clip_param)
+        vm.invoke_stateful("clip")
+        web_out = vm.get_outputs("clip")
 
         print("get web out")
 
 
-        import param_utils
         metal_input_ids = tvm.nd.array(input_ids, tvm.metal())
         metal_params_dict = param_utils.load_params(artifact_path="dist", device=tvm.metal())
 
@@ -88,7 +91,7 @@ def test_rpc():
         print("metal build success")
         metal_vm = relax.VirtualMachine(rt_mod=metal_ex, device=tvm.metal())
         print("start metal infer")
-        metal_out = metal_vm["clip"](metal_input_ids, metal_clip_param)
+        metal_out = metal_vm["clip"](metal_input_ids, *metal_clip_param)
         print("metal infer success")
 
 
