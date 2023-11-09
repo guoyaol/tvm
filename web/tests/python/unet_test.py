@@ -83,6 +83,10 @@ def test_rpc():
         vm.invoke_stateful("unet")
         web_out = vm.get_outputs("unet")
 
+        print("web infer finish")
+
+        web_numpy = web_out.numpy()
+
         print("get web out")
 
 
@@ -101,9 +105,20 @@ def test_rpc():
         metal_out = metal_vm["unet"](metal_input1, metal_input2, metal_input3, *metal_unet_param)
         print("metal infer success")
 
+        metal_numpy = metal_out.numpy()
 
+        def mean_absolute_error(y_true, y_pred):
+            return np.mean(np.abs(y_true - y_pred))
 
-        np.testing.assert_equal(web_out.numpy(), metal_out.numpy())
+        # Define the Mean Relative Error (MRE) function
+        def mean_relative_error(y_true, y_pred):
+            # Avoid division by zero by adding a small constant (epsilon)
+            epsilon = np.finfo(float).eps
+            return np.mean(np.abs((y_true - y_pred) / (y_true + epsilon)))
+        
+        print("mean_absolute_error: ", mean_absolute_error(web_numpy, metal_numpy))
+        print("mean_relative_error: ", mean_relative_error(web_numpy, metal_numpy))
+        np.testing.assert_equal(web_numpy, metal_numpy)
         print("Test pass..")
 
     check(remote)
