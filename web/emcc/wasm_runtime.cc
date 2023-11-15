@@ -57,7 +57,7 @@
 #include "src/runtime/relax_vm/bytecode.cc"
 #include "src/runtime/relax_vm/executable.cc"
 #include "src/runtime/relax_vm/lm_support.cc"
-#include "src/runtime/relax_vm/memory_manager.cc"
+#include "src/runtime/memory/memory_manager.cc"
 #include "src/runtime/relax_vm/ndarray_cache_support.cc"
 #include "src/runtime/relax_vm/vm.cc"
 
