@@ -70,6 +70,7 @@ def test_rpc():
         web_unet_param = web_params_dict["unet"]
 
         #[((1, 4, 64, 64), "float32"), ((), "int32"), ((2, 77, 768), "float32")]
+        np.random.seed(0)
         input1 = np.random.uniform(size=(1, 4, 64, 64)).astype(np.float32)
         input2 = np.random.uniform(size=()).astype(np.int32)
         input3 = np.random.uniform(size=(2, 77, 768)).astype(np.float32)
